@@ -1,137 +1,116 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
-pip install opencv-python
-
-
-# Psuedo Code:
-# 
-# 
-# 1. Read the input image.
-# 2. Convert the image to grayscale.
-# 3. Apply a Gaussian blur to the grayscale image to remove noise.
-# 4. Apply thresholding to the blurred image to create a binary image.
-# 5. Find the contours in the binary image.
-# 6. Create a copy of the original image to draw contours on.
-# 7. Set a minimum area threshold for the blobs.
-# 8. Initialize a count of blobs.
-# 9. Loop through all contours:
-#     a. Calculate the area of the contour.
-#     b. If the area is greater than the minimum threshold, draw the contour on the copy of the original image and increment the blob count.
-# 10. Display the result image with detected blobs and the count of blobs.
-# 
-# 
-
-# In[2]:
-
-
-pip install easygui
-
-
-# In[1]:
-
-
-## METHODS ## 
-#method to open img
-#for mac, require second waitkey
-def display():
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    cv2.waitKey(1)
-    
-def auto_canny(image, sigma=0.33):
-    v = np.median(image)
-    lower = int(max(0, (1.0 - sigma) * v))
-    upper = int(min(255, (1.0 + sigma) * v))
-    edged = cv2.Canny(image, lower, upper)
-    return edged
-
-
-# In[45]:
-
-
-## TEST IMAGE ## 
-import cv2 as cv2
-
-def display():
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    cv2.waitKey(1)
-
-# Load image file
-image = cv.imread("Te-me_0015.jpeg")
-
-dim=(500,590)
-image=cv2.resize(image, dim)
-cv2.imshow("image",image)
-display()
-
-#Thresholding 
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-cv2.imshow("grey",gray)
-display()
-(T, thresh) = cv2.threshold(gray, 155, 255, cv2.THRESH_BINARY)
-cv2.imshow("thresh",thresh)
-display()
-(T, threshInv) = cv2.threshold(gray, 155, 255,cv2.THRESH_BINARY_INV)
-cv2.imshow("threshInv", threshInv)
-display()
-
-
-# In[2]:
-
-
-##USER IMPUT IMAGE## 
+import cv2 as cv
+import numpy as np
 import easygui
-import cv2
+
+
+## ImageProcessor: This class is responsible for reading, preprocessing, and thresholding the MRI image.
+class ImageProcessor:
+    def __init__(self, file_path):
+        self.file_path = file_path
+
+    def read_image(self):
+        self.mri_img = cv.imread(self.file_path)
+
+    def threshold_image(self):
+        self.ret, self.thresh1 = cv.threshold(self.mri_img, 160, 255, cv.THRESH_BINARY)
+
+    def flood_fill(self):
+        kernel = cv.getStructuringElement(cv.MORPH_RECT, (7, 7))
+        closed = cv.morphologyEx(self.thresh1, cv.MORPH_CLOSE, kernel)
+        closed = cv.erode(closed, None, iterations=12)
+        closed = cv.dilate(closed, None, iterations=10)
+        self.closed = closed
+
+    def auto_canny(self, sigma=0.33):
+        # compute the median of the single channel pixel intensities
+        v = np.median(self.closed)
+
+        # apply automatic Canny edge detection using the computed median
+        lower = int(max(0, (1.0 - sigma) * v))
+        upper = int(min(255, (1.0 + sigma) * v))
+        edged = cv.Canny(self.closed, lower, upper)
+
+        self.canny = edged
+
+    def find_brain_area(self):
+        # read image
+        img = cv.imread(self.file_path, cv.IMREAD_GRAYSCALE)
+
+        # apply threshold to convert the image to binary
+        _, thresh = cv.threshold(img, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
+
+        # check OpenCV version
+        if cv.__version__.startswith('3'):
+            _, contours, hierarchy = cv.findContours(thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        else:
+            contours, hierarchy = cv.findContours(thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+        # find the contour with the largest area (which corresponds to the brain)
+        brain_contour = max(contours, key=cv.contourArea)
+
+        # calculate the area of the brain
+        brain_area = cv.contourArea(brain_contour)
+
+        return brain_area
+
+
+##ContourDetector: This class is responsible for detecting and analyzing the contours in the MRI image.
+
+class ContourDetector:
+    def __init__(self, canny):
+        self.canny = canny
+
+    def find_contours(self):
+        cnts, _ = cv.findContours(self.canny.copy(), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        self.cnts = cnts
+        self.num_tumors = len(cnts)
+
+    def draw_contours(self, img):
+        cv.drawContours(img, self.cnts, -1, (0, 0, 255), 2)
+
+    def compute_cross_sectional_area(self):
+        cnt = self.cnts[0]
+        area = cv.contourArea(cnt)
+        self.area = area
+
+    def compute_tumor_severity(self):
+        severity = self.area * self.num_tumors
+        if severity > 1000:
+            self.severity = "The patient is likely to experience adverse events from the tumor growth(s) at this size."
+        else:
+            self.severity = "The patient is not likely to experience adverse events from the tumor growth(s) at this size."
+
 
 def display():
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    cv2.waitKey(1)
-    
-# Get the image file from the user using the file dialog
-file_path = easygui.fileopenbox(default="*.jpg;*.jpeg;*.png", filetypes=["*.jpg", "*.jpeg", "*.png"])
-
-# Call the function to read and display the image
-image = cv2.imread(file_path)
-cv2.imshow("Image", image)
-display()
-    
-#Thresholding 
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-cv2.imshow("grey",gray)
-display()
-(T, thresh) = cv2.threshold(gray, 155, 255, cv2.THRESH_BINARY)
-cv2.imshow("thresh",thresh)
-display()
-(T, threshInv) = cv2.threshold(gray, 155, 255,cv2.THRESH_BINARY_INV)
-cv2.imshow("threshInv", threshInv)
-display()
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+    cv.waitKey(1)
 
 
-# In[ ]:
+if __name__ == '__main__':
+    # Get the image path from the user
+    file_path = easygui.fileopenbox(default="*.jpg;*.jpeg;*.png", filetypes=["*.jpg", "*.jpeg", "*.png"])
+
+    img_proc = ImageProcessor(file_path)
+    img_proc.read_image()
+    img_proc.threshold_image()
+    img_proc.flood_fill()
+    img_proc.auto_canny()
+
+    brain_area = img_proc.find_brain_area()
 
 
-#Morphological transformation 
-kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 5))
-closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
-cv2.imshow("closed", closed)
-display()
+    contour_detector = ContourDetector(img_proc.canny)
+    contour_detector.find_contours()
+    contour_detector.compute_cross_sectional_area()
+    contour_detector.compute_tumor_severity()
+    contour_detector.draw_contours(img_proc.mri_img)
 
-#erosion erode away boundaries of foreground object 
+    print("Number of tumors detected:", contour_detector.num_tumors)
+    print("The cross-sectional area of the tumor(s) mass is approximately:", contour_detector.area)
+    print("Tumor:Brain area ratio: ", round(contour_detector.area / brain_area, 2))
+    print("The tumor occupies approximately ", round((contour_detector.area / brain_area) * 100, 2),"% of the total cross-sectional area of the brain")
+    print("Severity of Tumor Growth:", contour_detector.severity)
 
-closed = cv2.erode(closed, None, iterations = 14)
-closed = cv2.dilate(closed, None, iterations = 13)
-
-#canny edge dector - outine of tumor
-canny = auto_canny(closed)
-
-_, cnts, hierarchy = cv2.findContours(canny.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-cv2.drawContours(image, cnts, -1, (0, 0, 255), 2)
-cv2.imshow("Image", image)
-display() 
-
+    cv.imshow("MRI Image with Contours", img_proc.mri_img)
+    display()
