@@ -25,9 +25,16 @@ pip install opencv-python
 # 
 # 
 
-# In[48]:
+# In[2]:
 
 
+pip install easygui
+
+
+# In[1]:
+
+
+## METHODS ## 
 #method to open img
 #for mac, require second waitkey
 def display():
@@ -46,8 +53,13 @@ def auto_canny(image, sigma=0.33):
 # In[45]:
 
 
+## TEST IMAGE ## 
 import cv2 as cv2
-import numpy as np
+
+def display():
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    cv2.waitKey(1)
 
 # Load image file
 image = cv.imread("Te-me_0015.jpeg")
@@ -57,6 +69,38 @@ image=cv2.resize(image, dim)
 cv2.imshow("image",image)
 display()
 
+#Thresholding 
+gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+cv2.imshow("grey",gray)
+display()
+(T, thresh) = cv2.threshold(gray, 155, 255, cv2.THRESH_BINARY)
+cv2.imshow("thresh",thresh)
+display()
+(T, threshInv) = cv2.threshold(gray, 155, 255,cv2.THRESH_BINARY_INV)
+cv2.imshow("threshInv", threshInv)
+display()
+
+
+# In[2]:
+
+
+##USER IMPUT IMAGE## 
+import easygui
+import cv2
+
+def display():
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    cv2.waitKey(1)
+    
+# Get the image file from the user using the file dialog
+file_path = easygui.fileopenbox(default="*.jpg;*.jpeg;*.png", filetypes=["*.jpg", "*.jpeg", "*.png"])
+
+# Call the function to read and display the image
+image = cv2.imread(file_path)
+cv2.imshow("Image", image)
+display()
+    
 #Thresholding 
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 cv2.imshow("grey",gray)
@@ -90,10 +134,4 @@ _, cnts, hierarchy = cv2.findContours(canny.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN
 cv2.drawContours(image, cnts, -1, (0, 0, 255), 2)
 cv2.imshow("Image", image)
 display() 
-
-
-# In[ ]:
-
-
-
 
