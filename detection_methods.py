@@ -81,8 +81,9 @@ class ContourDetector:
         cv.drawContours(img, self.cnts, -1, (0, 0, 255), 2)
 
     def compute_cross_sectional_area(self):
-        cnt = self.cnts[0]
-        area = cv.contourArea(cnt)
+        area = 0
+        for cnt in self.cnts:
+            area += cv.contourArea(cnt)
         self.area = area
 
     def compute_tumor_severity(self):
