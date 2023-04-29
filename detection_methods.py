@@ -46,7 +46,7 @@ class ImageProcessor:
 
         self.canny = edged
 
-    def find_brain_area(self):
+       def find_brain_area(self):
         # Convert the image to grayscale
         gray = cv2.cvtColor(self.mri_img, cv2.COLOR_RGB2GRAY)
 
@@ -61,10 +61,9 @@ class ImageProcessor:
         brain_area_mask = np.zeros_like(thresh)
         cv2.drawContours(brain_area_mask, [max_contour], 0, 255, -1)
 
-        # Apply the brain area mask to the original image
-        self.mri_img = cv2.bitwise_and(self.mri_img, self.mri_img, mask=brain_area_mask)
+        brain_area = cv2.contourArea(max_contour)
 
-        return self.mri_img
+        return brain_area
 
 
 ##ContourDetector: This class is responsible for detecting and analyzing the contours in the MRI image.
