@@ -79,7 +79,7 @@ def analyze_image(contents):
             html.P('The cross-sectional area of the tumor(s) mass is approximately: {}'.format(contour_detector.area)),
             html.P('Tumor:Brain area ratio: {}'.format(tumor_brain_ratio)),
             html.P(
-                'The tumor occupies approximately {}% of the total cross-sectional area of the brain'.format(percent)),
+                'The tumor(s) mass occupies approximately {}% of the total cross-sectional area of the brain'.format(percent)),
             html.P('Severity of Tumor Growth: {}'.format(contour_detector.severity))
         ]
 
