@@ -10,6 +10,9 @@ class ImageProcessor:
         self.mri_img = None
         self.thresh_img = None
 
+    def set_original_image(self, original_img):
+        self.original_img = original_img
+
     def set_image_data(self, contents):
         # Decode the image data from base64
         img = base64.b64decode(contents.split(',')[1])
@@ -46,7 +49,7 @@ class ImageProcessor:
 
         self.canny = edged
 
-       def find_brain_area(self):
+    def find_brain_area(self):
         # Convert the image to grayscale
         gray = cv2.cvtColor(self.mri_img, cv2.COLOR_RGB2GRAY)
 
