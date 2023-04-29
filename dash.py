@@ -1,94 +1,87 @@
-import cv2 as cv
+
+import dash
+from dash import Dash, dcc, html
 import base64
 import cv2
 import numpy as np
+from dash.dependencies import Input, Output
+from detection_methods import ImageProcessor, ContourDetector
+
+app = dash.Dash()
+
+app.layout = html.Div([
+    dcc.Upload(
+        id='upload-image',
+        children=html.Div([
+            'Drag and drop or click to select an image'
+        ])
+    ),
+    html.Div(id='image-container')
+])
 
 
-## ImageProcessor: This class is responsible for reading, preprocessing, and thresholding the MRI image.
-class ImageProcessor:
-    def __init__(self):
-        self.mri_img = None
-        self.thresh_img = None
+@app.callback(
+    Output('image-container', 'children'),
+    Input('upload-image', 'contents')
+)
+def analyze_image(contents):
+    if contents is not None:
+        img_processor = ImageProcessor()
+        img_processor.set_image_data(contents)
+        img_processor.set_original_image(img_processor.mri_img.copy())
 
-    def set_image_data(self, contents):
-        # Decode the image data from base64
-        img = base64.b64decode(contents.split(',')[1])
-        # Load the image using cv2
-        nparr = np.frombuffer(img, np.uint8)
-        self.mri_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        img_processor.threshold_image()
+        img_processor.flood_fill()
+        img_processor.auto_canny()
 
-    def threshold_image(self):
-        if self.mri_img is not None:
-            ret, thresh_img = cv.threshold(self.mri_img, 160, 255, cv.THRESH_BINARY)
-            self.thresh_img = thresh_img
-            return thresh_img
+        brain_area = img_processor.find_brain_area()
+
+        contour_detector = ContourDetector(img_processor.canny)
+
+        contour_detector.find_contours()
+        contour_detector.compute_cross_sectional_area()
+        contour_detector.compute_tumor_severity()
+        contour_detector.draw_contours(img_processor.mri_img)
+
+        # Encode the original image as base64
+        _, buffer = cv2.imencode('.png', img_processor.original_img)
+        original_data = base64.b64encode(buffer).decode('utf-8')
+
+        # Encode the image with contours as base64
+        _, buffer = cv2.imencode('.png', img_processor.mri_img)
+        contour_data = base64.b64encode(buffer).decode('utf-8')
+
+        # Display the image with contours
+        if np.any(brain_area == 0):
+            tumor_brain_ratio = float('0')
         else:
-            raise ValueError("No image data has been set.")
+            tumor_brain_ratio = round(contour_detector.area / brain_area, 2)
 
-    def flood_fill(self):
-        if self.thresh_img is not None:
-            kernel = cv.getStructuringElement(cv.MORPH_RECT, (7, 7))
-            closed = cv.morphologyEx(self.thresh_img, cv.MORPH_CLOSE, kernel)
-            closed = cv.erode(closed, None, iterations=12)
-            closed = cv.dilate(closed, None, iterations=10)
-            self.closed = closed
+        if np.isscalar(brain_area):
+            percent = round((contour_detector.area / brain_area) * 100, 2)
         else:
-            raise ValueError("Threshold image not available.")
+            percent = float('nan')
 
-    def auto_canny(self, sigma=0.33):
-        # compute the median of the single channel pixel intensities
-        v = np.median(self.closed)
+        return [
+            html.Div([
+                html.H2('Original Image'),
+                html.Img(src='data:image/png;base64,{}'.format(original_data))
+            ], style={'float': 'left', 'width': '50%'}),
 
-        # apply automatic Canny edge detection using the computed median
-        lower = int(max(0, (1.0 - sigma) * v))
-        upper = int(min(255, (1.0 + sigma) * v))
-        edged = cv.Canny(self.closed, lower, upper)
-
-        self.canny = edged
-
-    def find_brain_area(self):
-        # Convert the image to grayscale
-        gray = cv2.cvtColor(self.mri_img, cv2.COLOR_RGB2GRAY)
-
-        # Threshold the image
-        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-        # Find the contours in the binary image
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        # Find the largest contour, which is assumed to be the brain area
-        max_contour = max(contours, key=cv2.contourArea)
-        brain_area_mask = np.zeros_like(thresh)
-        cv2.drawContours(brain_area_mask, [max_contour], 0, 255, -1)
-
-        # Apply the brain area mask to the original image
-        self.mri_img = cv2.bitwise_and(self.mri_img, self.mri_img, mask=brain_area_mask)
-
-        return self.mri_img
+            html.Div([
+                html.H2('Image with Contours'),
+                html.Img(src='data:image/png;base64,{}'.format(contour_data))
+            ], style={'float': 'right', 'width': '50%'}),
 
 
-##ContourDetector: This class is responsible for detecting and analyzing the contours in the MRI image.
+            html.H4('Results:'),
+            html.P('Number of tumors detected: {}'.format(contour_detector.num_tumors)),
+            html.P('The cross-sectional area of the tumor(s) mass is approximately: {}'.format(contour_detector.area)),
+            html.P('Tumor:Brain area ratio: {}'.format(tumor_brain_ratio)),
+            html.P(
+                'The tumor occupies approximately {}% of the total cross-sectional area of the brain'.format(percent)),
+            html.P('Severity of Tumor Growth: {}'.format(contour_detector.severity))
+        ]
 
-class ContourDetector:
-    def __init__(self, canny):
-        self.canny = canny
-
-    def find_contours(self):
-        cnts, _ = cv.findContours(self.canny.copy(), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-        self.cnts = cnts
-        self.num_tumors = len(cnts)
-
-    def draw_contours(self, img):
-        cv.drawContours(img, self.cnts, -1, (0, 0, 255), 2)
-
-    def compute_cross_sectional_area(self):
-        cnt = self.cnts[0]
-        area = cv.contourArea(cnt)
-        self.area = area
-
-    def compute_tumor_severity(self):
-        severity = self.area * self.num_tumors
-        if severity > 1000:
-            self.severity = "The patient is likely to experience adverse events from the tumor growth(s) at this size."
-        else:
-            self.severity = "The patient is not likely to experience adverse events from the tumor growth(s) at this size."
+if __name__ == '__main__':
+    app.run_server(debug=True)
