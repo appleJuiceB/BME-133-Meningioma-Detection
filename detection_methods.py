@@ -85,9 +85,18 @@ class ContourDetector:
 
     def compute_cross_sectional_area(self):
         area = 0
+        cntr_areas_list = []
+        all_contour_areas = 0
         for cnt in self.cnts:
             area += cv.contourArea(cnt)
-        self.area = area
+            all_contour_areas += area
+            cntr_areas_list.append(area)
+        self.cntr_areas_list = cntr_areas_list
+        print(self.cntr_areas_list)
+        self.area = all_contour_areas
+        print(self.area)
+        return
+
 
     def compute_tumor_severity(self):
         severity = self.area * self.num_tumors
