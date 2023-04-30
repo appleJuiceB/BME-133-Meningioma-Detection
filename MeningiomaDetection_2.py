@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 import easygui
 import pandas as pd
+import os
 
 
 ## ImageProcessor: This class is responsible for reading, preprocessing, and thresholding the MRI image.
@@ -48,7 +49,8 @@ class ImageProcessor:
 
         # find the contour with the largest area (which corresponds to the brain)
         brain_contour = max(contours, key=cv.contourArea)
-
+        self.brain_contour = brain_contour
+        
         # calculate the area of the brain
         brain_area = cv.contourArea(brain_contour)
 
@@ -68,42 +70,49 @@ class ContourDetector:
 
  #-----------------------------------------------------
 
-    '''def write_contour_files(self):
+    def extract_contour_tumors(self):
         tumr_list = []
-        mask = np.zeros_like(img_proc.closed, dtype=np.uint8)
+        mask = np.zeros_like(self.canny, dtype=np.uint8)
         for cntr in self.cnts:
             x,y,w,h = cv.boundingRect(cntr)
             img_crop = img_proc.mri_img[y:y+h, x:x+w]
             mask_crop = mask[y:y+h, x:x+w]
-
-            cntr = cv.cvtColor(img_crop, cv.COLOR_BGR2BGRA)
-            cntr[:,:,3] = mask_crop
-
-            tumr_list.append(cntr)
+            result = cv.cvtColor(img_crop, cv.COLOR_BGR2BGRA)
+            result[:,:,3] = mask_crop
+            tumr_list.append(result)
+        self.tumr_list = tumr_list
+        
+    def write_extracted_contours_file(self):
+        file_path = './Tumor_Images'
+        if os.path.exists(file_path) != True:
+            os.mkdir(file_path)
 
         counter = 1
-        for i in tumr_list:
-            cv.imread(i)
-            cv.imshow("Edged Image" + counter)
-            
-            counter += counter'''
-        
+        for i in self.tumr_list:
+            img_file_name = 'contour_tumor_' + str(counter) + '.png'
+            cv.imwrite(os.path.join(file_path, img_file_name), cv.cvtColor(i, cv.COLOR_BGRA2BGR))
+            #imshow will show all "Edged Images"
+            #cv.imshow("Edged Image" + str(counter), i)
+            counter = counter + 1
+
 #-----------------------------------------------------
 
     def draw_contours(self, img):
         cv.drawContours(img, self.cnts, -1, (0, 0, 255), 2)
 
     def compute_cross_sectional_area(self):
-        cnt = self.cnts[0]
-        area = cv.contourArea(cnt)
-        self.area = area
-
-    def compute_contour_areas_list(self):
+        area = 0
         cntr_areas_list = []
-        for cntr in self.cnts:
-            area = cv.contourArea(cntr)
+        all_contour_areas = 0
+        for cnt in self.cnts:
+            area += cv.contourArea(cnt)
+            all_contour_areas += area
             cntr_areas_list.append(area)
         self.cntr_areas_list = cntr_areas_list
+        print(self.cntr_areas_list)
+        self.area = all_contour_areas
+        print(self.area)
+        return
 
     def compute_tumor_severity(self):
         severity = self.area * self.num_tumors
@@ -144,13 +153,14 @@ if __name__ == '__main__':
     print("The tumor occupies approximately ", round((contour_detector.area / brain_area) * 100, 2),"% of the total cross-sectional area of the brain")
     print("Severity of Tumor Growth:", contour_detector.severity)
 
-    contour_detector.compute_contour_areas_list()
+    # Create contour areas data frame
     df = pd.DataFrame(contour_detector.cntr_areas_list, columns = ["Contour Areas"])
     print ("data frame", df)
 
     #-----------------------------------------------------
 
-   # contour_detector.write_contour_files()
+    contour_detector.extract_contour_tumors()
+    contour_detector.write_extracted_contours_file()
 
     #-----------------------------------------------------
     
