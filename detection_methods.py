@@ -2,7 +2,7 @@ import cv2 as cv
 import base64
 import cv2
 import numpy as np
-
+import os
 
 ## ImageProcessor: This class is responsible for reading, preprocessing, and thresholding the MRI image.
 class ImageProcessor:
@@ -104,3 +104,32 @@ class ContourDetector:
             self.severity = "The patient is likely to experience adverse events from the tumor growth(s) at this size."
         else:
             self.severity = "The patient is not likely to experience adverse events from the tumor growth(s) at this size."
+
+        # -----------------------------------------------------
+
+    def extract_contour_tumors(self,img):
+            tumr_list = []
+            mask = np.zeros_like(self.canny, dtype=np.uint8)
+            for cntr in self.cnts:
+                x, y, w, h = cv.boundingRect(cntr)
+                img_crop = img[y:y + h, x:x + w]
+                mask_crop = mask[y:y + h, x:x + w]
+                result = cv.cvtColor(img_crop, cv.COLOR_BGR2BGRA)
+                result[:, :, 3] = mask_crop
+                tumr_list.append(result)
+            self.tumr_list = tumr_list
+
+    def write_extracted_contours_file(self):
+            file_path = './Tumor_Images_Dash'
+            if os.path.exists(file_path) != True:
+                os.mkdir(file_path)
+
+            counter = 1
+            for i in self.tumr_list:
+                img_file_name = 'contour_tumor_' + str(counter) + '.png'
+                cv.imwrite(os.path.join(file_path, img_file_name), cv.cvtColor(i, cv.COLOR_BGRA2BGR))
+                # imshow will show all "Edged Images"
+                # cv.imshow("Edged Image" + str(counter), i)
+                counter = counter + 1
+
+    # -----------------------------------------------------
