@@ -123,6 +123,9 @@ class ContourDetector:
             file_path = './Tumor_Images_Dash'
             if os.path.exists(file_path) != True:
                 os.mkdir(file_path)
+            elif len(os.listdir(file_path)) != 0:
+                for f in os.listdir(file_path):
+                    os.remove(os.path.join(file_path, f))
 
             counter = 1
             for i in self.tumr_list:
