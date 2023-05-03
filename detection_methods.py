@@ -105,8 +105,6 @@ class ContourDetector:
         else:
             self.severity = "The patient is not likely to experience adverse events from the tumor growth(s) at this size."
 
-        # -----------------------------------------------------
-
     def extract_contour_tumors(self,img):
             tumr_list = []
             mask = np.zeros_like(self.canny, dtype=np.uint8)
@@ -134,5 +132,10 @@ class ContourDetector:
                 # imshow will show all "Edged Images"
                 # cv.imshow("Edged Image" + str(counter), i)
                 counter = counter + 1
-
-    # -----------------------------------------------------
+                
+    def compute_tumor_brain_occupation(self):
+        all_tum_occup_list = []
+        for a in self.cntr_areas_list:
+            tum_occup = round((a / brain_area) * 100, 2)
+            all_tum_occup_list.append(tum_occup)
+        self.all_tum_occup_list = all_tum_occup_list
