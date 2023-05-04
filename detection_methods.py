@@ -88,7 +88,7 @@ class ContourDetector:
         cntr_areas_list = []
         all_contour_areas = 0
         for cnt in self.cnts:
-            area += cv.contourArea(cnt)
+            area = cv.contourArea(cnt)
             all_contour_areas += area
             cntr_areas_list.append(area)
         self.cntr_areas_list = cntr_areas_list
@@ -126,12 +126,13 @@ class ContourDetector:
                     os.remove(os.path.join(file_path, f))
 
             counter = 1
+            img_file_name_list = []
             for i in self.tumr_list:
                 img_file_name = 'contour_tumor_' + str(counter) + '.png'
                 cv.imwrite(os.path.join(file_path, img_file_name), cv.cvtColor(i, cv.COLOR_BGRA2BGR))
-                # imshow will show all "Edged Images"
-                # cv.imshow("Edged Image" + str(counter), i)
+                img_file_name_list.append(img_file_name)
                 counter = counter + 1
+            self.img_file_name_list = img_file_name_list
                 
     def compute_tumor_brain_occupation(self):
         all_tum_occup_list = []
@@ -139,3 +140,10 @@ class ContourDetector:
             tum_occup = round((a / brain_area) * 100, 2)
             all_tum_occup_list.append(tum_occup)
         self.all_tum_occup_list = all_tum_occup_list
+        
+    def create_scatter_plot(self):
+        plt.bar(self.img_file_name_list, self.all_tum_occup_list, color = 'maroon', width = 0.5)
+        plt.xlabel('Tumor')
+        plt.ylabel('Percent of Tumor Occupation (%)')
+        plt.title('Portion of Tumor to Brain Occupation')
+        plt.show()
