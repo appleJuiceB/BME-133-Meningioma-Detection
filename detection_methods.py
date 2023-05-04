@@ -3,6 +3,8 @@ import base64
 import cv2
 import numpy as np
 import os
+import pandas as pd
+import matplotlib.pyplot as plt
 
 ## ImageProcessor: This class is responsible for reading, preprocessing, and thresholding the MRI image.
 class ImageProcessor:
