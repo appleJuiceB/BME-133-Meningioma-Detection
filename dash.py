@@ -10,16 +10,6 @@ import pandas as pd
 
 app = dash.Dash()
 
-# app.layout = html.Div([
-#     dcc.Upload(
-#         id='upload-image',
-#         children=html.Div([
-#             'Drag and drop or click to select an image'
-#         ])
-#     ),
-#     html.Div(id='image-container')
-# ])
-
 app.layout = html.Div([
     dcc.Upload(
         id='upload-image',
@@ -41,6 +31,7 @@ app.layout = html.Div([
         multiple=False
     ),
     html.Div(id='image-container'),
+
 
 ])
 
